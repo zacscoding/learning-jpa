@@ -25,4 +25,21 @@ http://www.h2database.com 에서 All Platforms or Platform-Independent Zip
 (일반적으로 트랜잭션을 커밋할 때 영속성 컨텍스트가 플러시 됨)  
 - 영속성 컨텍스트가 관리하는 엔티티를 **영속 상태** 의 엔티티라고 함. 더 이상 관리하지 못하면  
 **준영속 상태의 엔티티** 라 함. 준영속 상태의 엔티티는 영속성 컨텍스트가 제공하는 위의 기능들을  
-사용할 수 없음
+사용할 수 없음  
+
+### 4. 엔티티 매핑  
+
+- @Entity @Table을 통한 객체와 테이블 매핑
+- 키 매핑 전략
+  - 직접 할당
+  - IDENTITY : 기본 키 생성을 데이터베이스에 위임
+  - SEQUENCE : 데이터베이스 시퀀스를 사용해 기본 키를 할당
+  - TABLE : 키 생성 테이블을 사용
+  - AUTO : 선택한 데이터베이스 방언에 따라 IDENTITY, SEQUENCE, TABLE 전략 중 하나 사용
+- 필드와 컬럼 매핑
+  - @Column : 컬럼을 매핑
+  - @Enumerated : 자바의 enum 타입을 매핑
+  - @Temporal : 날짜 타입을 매핑
+  - @Lob : BLOB, CLOB 타입을 매핑
+  - @Transient : 특정 필드를 데이터베이스에 매핑X
+  - @Access : JPA가 엔티티에 접근하는 방식을 지정
