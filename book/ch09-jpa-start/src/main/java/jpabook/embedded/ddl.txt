@@ -1,0 +1,1 @@
+Hibernate: create table member02 (id bigint not null, city varchar(255), street varchar(255), zipcode varchar(255), name varchar(255), end_date date, start_date date, primary key (id))

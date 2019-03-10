@@ -1,0 +1,5 @@
+Hibernate: create table address03 (member03_id bigint not null, city varchar(255), street varchar(255), zipcode varchar(255))
+Hibernate: create table favorite_foods (member03_id bigint not null, food_name varchar(255))
+Hibernate: create table member03 (member03_id bigint not null, city varchar(255), street varchar(255), zipcode varchar(255), primary key (member03_id))
+Hibernate: alter table address03 add constraint FK_ky7jb48g37blis3ow3qrgve5m foreign key (member03_id) references member03
+Hibernate: alter table favorite_foods add constraint FK_k76140fscd05yvifsfgbth9g foreign key (member03_id) references member03
