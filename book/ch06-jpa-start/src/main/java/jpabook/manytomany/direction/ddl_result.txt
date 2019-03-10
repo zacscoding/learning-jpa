@@ -1,0 +1,5 @@
+Hibernate: create table member06 (member06_id varchar(255) not null, username varchar(255), primary key (member06_id))
+Hibernate: create table member06_product06 (member06_id varchar(255) not null, product06_id varchar(255) not null)
+Hibernate: create table product06 (product06_id varchar(255) not null, name varchar(255), primary key (product06_id))
+Hibernate: alter table member06_product06 add constraint FK_e1didsss7qnom0n98wauwqxqn foreign key (product06_id) references product06
+Hibernate: alter table member06_product06 add constraint FK_hao6xt5u8kqjwjf02si9c40xx foreign key (member06_id) references member06

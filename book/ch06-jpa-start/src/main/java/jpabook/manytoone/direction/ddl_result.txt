@@ -1,0 +1,3 @@
+Hibernate: create table member01 (member01_id bigint not null, username varchar(255), team01_id bigint, primary key (member01_id))
+Hibernate: create table team01 (team01_id bigint not null, name varchar(255), primary key (team01_id))
+Hibernate: alter table member01 add constraint FK_5d4rt7cwbgbxk3pnp1o8fyh7o foreign key (team01_id) references team01

@@ -1,0 +1,6 @@
+Hibernate: create table member03 (member03_id bigint not null, team03_id bigint, primary key (member03_id))
+Hibernate: create table team03 (team03_id bigint not null, name varchar(255), primary key (team03_id))
+Hibernate: alter table member03 add constraint FK_i07dl9dkrj23b2976t4xar2h8 foreign key (team03_id) references team03
+
+==> insert 시 update가 추가 됨
+==> insert member, insert team, update member

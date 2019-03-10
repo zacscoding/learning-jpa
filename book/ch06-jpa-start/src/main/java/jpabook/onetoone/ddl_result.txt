@@ -1,0 +1,3 @@
+Hibernate: create table locker05 (locker05_id bigint not null, name varchar(255), primary key (locker05_id))
+Hibernate: create table member05 (member05_id bigint not null, username varchar(255), locker05_id bigint, primary key (member05_id))
+Hibernate: alter table member05 add constraint FK_sngtscupb6issivf571vba4me foreign key (locker05_id) references locker05
