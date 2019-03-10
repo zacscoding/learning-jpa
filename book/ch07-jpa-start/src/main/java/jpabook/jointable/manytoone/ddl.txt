@@ -1,0 +1,5 @@
+Hibernate: create table child12 (child12_id bigint not null, name varchar(255), primary key (child12_id))
+Hibernate: create table parent12 (parent12_id bigint not null, name varchar(255), primary key (parent12_id))
+Hibernate: create table parent12_child12 (parent12_id bigint not null, child12_id bigint not null, primary key (child12_id))
+Hibernate: alter table parent12_child12 add constraint FK_mx73g1bxm46vj9qkkwqf54ab5 foreign key (parent12_id) references parent12
+Hibernate: alter table parent12_child12 add constraint FK_h8aqn3uv4wri18rkmkxb6ox7x foreign key (child12_id) references child12

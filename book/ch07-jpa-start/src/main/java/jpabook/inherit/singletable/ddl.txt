@@ -1,0 +1,1 @@
+Hibernate: create table item02 (dtype varchar(31) not null, item02_id bigint not null, name varchar(255), price integer not null, author varchar(255), isbn varchar(255), artist varchar(255), actor varchar(255), director varchar(255), primary key (item02_id))

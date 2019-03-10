@@ -1,0 +1,5 @@
+Hibernate: create table child10 (child10_id bigint not null, name varchar(255), primary key (child10_id))
+Hibernate: create table parent10 (parent10_id bigint not null, name varchar(255), primary key (parent10_id))
+Hibernate: create table parent10_child10 (child10_id bigint, parent10_id bigint not null, primary key (parent10_id))
+Hibernate: alter table parent10_child10 add constraint FK_a45qmflf5l27l314eu13gba7 foreign key (child10_id) references child10
+Hibernate: alter table parent10_child10 add constraint FK_9qs4jcjlxf29fdx5pd0w2tktw foreign key (parent10_id) references parent10

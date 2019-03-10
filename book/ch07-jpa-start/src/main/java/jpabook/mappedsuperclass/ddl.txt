@@ -1,0 +1,2 @@
+Hibernate: create table member04 (member04_id bigint not null, name varchar(255), email varchar(255), primary key (member04_id))
+Hibernate: create table seller04 (id bigint not null, name varchar(255), shop_name varchar(255), primary key (id))

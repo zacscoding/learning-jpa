@@ -1,0 +1,3 @@
+Hibernate: create table board09 (board09_id bigint not null, title varchar(255), primary key (board09_id))
+Hibernate: create table board_detail09 (board09_id bigint not null, content varchar(255), primary key (board09_id))
+Hibernate: alter table board_detail09 add constraint FK_al67fcgdgj77ravkmg0n57r70 foreign key (board09_id) references board09

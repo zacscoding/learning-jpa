@@ -1,0 +1,7 @@
+Hibernate: create table album01 (artist varchar(255), item01_id bigint not null, primary key (item01_id))
+Hibernate: create table book01 (author varchar(255), isbn varchar(255), book01_id bigint not null, primary key (book01_id))
+Hibernate: create table item01 (dtype varchar(31) not null, item01_id bigint not null, name varchar(255), price integer not null, primary key (item01_id))
+Hibernate: create table movie01 (actor varchar(255), director varchar(255), item01_id bigint not null, primary key (item01_id))
+Hibernate: alter table album01 add constraint FK_n8ua168qmew1tjqfeqctbybxd foreign key (item01_id) references item01
+Hibernate: alter table book01 add constraint FK_8mi5lex4hujjsa1v66x4l3v1j foreign key (book01_id) references item01
+Hibernate: alter table movie01 add constraint FK_e7t1iijg9sbohj5pcjpdptnt8 foreign key (item01_id) references item01

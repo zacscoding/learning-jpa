@@ -1,0 +1,3 @@
+Hibernate: create table child05 (id varchar(255) not null, parent05_id1 varchar(255), parent05_id2 varchar(255), primary key (id))
+Hibernate: create table parent05 (parent05_id1 varchar(255) not null, parent05_id2 varchar(255) not null, name varchar(255), primary key (parent05_id1, parent05_id2))
+Hibernate: alter table child05 add constraint FK_ph5x5n61e7gqfxv3nttg6eri1 foreign key (parent05_id1, parent05_id2) references parent05

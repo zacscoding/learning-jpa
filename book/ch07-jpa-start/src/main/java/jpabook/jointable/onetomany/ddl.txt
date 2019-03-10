@@ -1,0 +1,6 @@
+Hibernate: create table child11 (child11_id bigint not null, name varchar(255), primary key (child11_id))
+Hibernate: create table parent11 (parent11_id bigint not null, name varchar(255), primary key (parent11_id))
+Hibernate: create table parent11_child11 (parent11_id bigint not null, child11_id bigint not null)
+Hibernate: alter table parent11_child11 add constraint UK_9ixdhpb663gsebdyxih0yng9c  unique (child11_id)
+Hibernate: alter table parent11_child11 add constraint FK_9ixdhpb663gsebdyxih0yng9c foreign key (child11_id) references child11
+Hibernate: alter table parent11_child11 add constraint FK_881u5ngkf8bihvm34r1blmwed foreign key (parent11_id) references parent11
