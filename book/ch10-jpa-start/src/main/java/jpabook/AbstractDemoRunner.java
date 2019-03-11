@@ -7,6 +7,8 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
 import javax.persistence.Persistence;
 import jpabook.entity.Member;
+import jpabook.entity.Order;
+import jpabook.entity.Team;
 
 /**
  * https://github.com/holyeye/jpabook
@@ -15,12 +17,28 @@ public class AbstractDemoRunner {
 
     private EntityManagerFactory emf = Persistence.createEntityManagerFactory("jpabook");
 
+    public Team saveTeam(Team team) {
+        this.doTask("Save member " + team.toString(), em -> {
+            em.persist(team);
+        });
+
+        return team;
+    }
+
     public Member saveMember(Member member) {
         this.doTask("Save member " + member.toString(), em -> {
             em.persist(member);
         });
 
         return member;
+    }
+
+    public Order saveOrder(Order order) {
+        this.doTask("Save order", em -> {
+            em.persist(order);
+        });
+
+        return order;
     }
 
     public void doTask(Consumer<EntityManager> entityManagerConsumer) {
