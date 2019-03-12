@@ -5,9 +5,11 @@ import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
+import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -26,6 +28,10 @@ import lombok.ToString;
 @AllArgsConstructor
 @ToString(exclude = {"orders"})
 @Entity
+@NamedQuery(
+    name = "Member.findByUsername" // 이름의 Member는 영속성 유닛 단위로 관리되므로 충돌을 방지하기 위해
+    , query = "SELECT m from Member m where m.username = :username"
+)
 public class Member {
 
     @Id
@@ -38,7 +44,7 @@ public class Member {
 
     private int age;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Team team;
 
     @OneToMany(mappedBy = "member")

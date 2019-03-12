@@ -6,10 +6,15 @@ import java.util.Random;
 import java.util.stream.IntStream;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
 import jpabook.AbstractDemoRunner;
 import jpabook.dto.UserDTO;
 import jpabook.entity.Address;
 import jpabook.entity.Member;
+import jpabook.entity.Order;
 import jpabook.entity.Team;
 
 /**
@@ -40,9 +45,108 @@ public class JqplDemo {
             // pagingAPI(runner);
             // setAndSort(runner);
             // reportingQuery(runner);
-            jpqlJoin(runner);
+            // jpqlJoin(runner);
+            // pathExpression(runner);
+            // subquery(runner);
+            // useEntityDirectly(runner);
+            // namedQuery(runner);
+            criteriaUsage(runner);
         } finally {
             runner.close();
+        }
+    }
+
+    private static void criteriaUsage(AbstractDemoRunner runner) {
+        runner.doTask("Criteria 사용", em -> {
+            // 쿼리 빌더
+            CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
+
+            // Criteria 생성, 반환 타입 지정
+            CriteriaQuery<Member> criteriaQuery = criteriaBuilder.createQuery(Member.class);
+
+            // FROM 절
+            Root<Member> memberRoot = criteriaQuery.from(Member.class);
+
+            // 검색 조건 정의
+            Predicate usernameEqual = criteriaBuilder.equal(memberRoot.get("username"), "유저1");
+
+            // 정렬 조건 정의
+            javax.persistence.criteria.Order ageDesc = criteriaBuilder.desc(memberRoot.get("age"));
+
+            // 쿼리 생성
+            criteriaQuery.select(memberRoot)
+                .where(usernameEqual)
+                .orderBy(ageDesc);
+
+            // SQL : select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_ from member member0_ where member0_.name=? order by member0_.age desc
+            TypedQuery<Member> query = em.createQuery(criteriaQuery);
+            List<Member> results = query.getResultList();
+            System.out.println(">> Search result size " + results.size());
+        });
+    }
+
+    private static void namedQuery(AbstractDemoRunner runner) {
+        runner.doTask("NamedQuery 사용", em -> {
+            // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_ from member member0_ where member0_.name=?
+            List<Member> results = em.createNamedQuery("Member.findByUsername", Member.class)
+                .setParameter("username", "유저1")
+                .getResultList();
+
+            System.out.println("Search result : " + results.size());
+        });
+    }
+
+    private static void useEntityDirectly(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("엔티티 직접 사용", em -> {
+                // select count(member0_.member_id) as col_0_0_ from member member0_
+                String jpql = "SELECT count(m) from Member m";
+                Long result = (Long) em.createQuery(jpql).getSingleResult();
+                System.out.println("result :: " + result);
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void subquery(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("서브 쿼리 사용", em -> {
+                // SQL : select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_ from member member0_ where member0_.age>(select avg(cast(member1_.age as double)) from member member1_)
+                String jpql = "SELECT m from Member m where m.age > (SELECT avg(m2.age) FROM Member m2)";
+                List<Member> results = em.createQuery(jpql, Member.class).getResultList();
+                System.out.println("Search result size : " + results.size());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void pathExpression(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("상태 필드 경로 탐색", em -> {
+                // sql : select member0_.name as col_0_0_, member0_.age as col_1_0_ from member member0_
+                String jpql = "SELECT m.username, m.age from Member m";
+                List<Object[]> results = em.createQuery(jpql).getResultList();
+                for (Object[] result : results) {
+                    System.out.println(Arrays.toString(result));
+                }
+            });
+
+            runner.doTask("단일 값 연관 경로 탐색", em -> {
+                // SQL : select member1_.member_id as member_i1_0_, member1_.age as age2_0_, member1_.team as team4_0_, member1_.name as name3_0_ from orders order0_ inner join member member1_ on order0_.member_id=member1_.member_id
+                String jqpl = "SELECT o.member from Order o";
+                List<Object[]> results = em.createQuery(jqpl).getResultList();
+                System.out.println("Search result size : " + results.size());
+            });
+
+            runner.doTask("컬렉션 값 연관 경로 탐색", em -> {
+                String jpql = "SELECT t.members from Team t";
+                List<Object[]> results = em.createQuery(jpql).getResultList();
+                System.out.println("Search result size : " + results.size());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
         }
     }
 
@@ -93,6 +197,33 @@ public class JqplDemo {
                     Team team = (Team) result[1];
                     System.out.println("Member.username : " + member.getUsername()
                         + "Team.name : " + (team == null ? "null" : team.getName()));
+                }
+            });
+
+            runner.doTask("페치 조인", em -> {
+                // SQL : select member0_.member_id as member_i1_0_0_, team1_.team_id as team_id1_3_1_, member0_.age as age2_0_0_, member0_.team as team4_0_0_, member0_.name as name3_0_0_, team1_.name as name2_3_1_ from member member0_ inner join team team1_ on member0_.team=team1_.team_id
+                String jpql = "SELECT m from Member m join fetch m.team";
+                List<Member> results = em.createQuery(jpql, Member.class)
+                    .getResultList();
+
+                for (Member member : results) {
+                    System.out.println(
+                        "username : " + member.getUsername() + ", team name : " + member.getTeam().getName()
+                    );
+                }
+            });
+
+            runner.doTask("컬렉션 페치 조인", em -> {
+                // SQL : select team0_.team_id as team_id1_3_0_, members1_.member_id as member_i1_0_1_, team0_.name as name2_3_0_, members1_.age as age2_0_1_, members1_.team as team4_0_1_, members1_.name as name3_0_1_, members1_.team as team4_3_0__, members1_.member_id as member_i1_0_0__ from team team0_ inner join member members1_ on team0_.team_id=members1_.team where team0_.name='team01'
+                // SELECT distinct t 하면 distinct 추가는 됨 + 애플리케이션에서 중복된 데이터를 걸러냄
+                String jpql = "SELECT t from Team t join fetch t.members where t.name = 'team01'";
+                // String jpql = "SELECT distinct t from Team t join fetch t.members where t.name = 'team01'";
+                List<Team> teams = em.createQuery(jpql, Team.class)
+                    .getResultList();
+                // ==> team01 n 개 나옴
+                System.out.println(">> search result size : " + teams.size());
+                for (Team team : teams) {
+                    System.out.println("Team name : " + team.getName() + " with members : " + team.getMembers().size());
                 }
             });
         } catch (Exception e) {
