@@ -1,20 +1,38 @@
 package jpabook.jpql;
 
+import com.mysema.query.QueryModifiers;
+import com.mysema.query.SearchResults;
+import com.mysema.query.jpa.JPASubQuery;
+import com.mysema.query.jpa.impl.JPADeleteClause;
+import com.mysema.query.jpa.impl.JPAQuery;
+import com.mysema.query.jpa.impl.JPAUpdateClause;
+import com.mysema.query.types.Projections;
+import com.mysema.query.types.QTuple;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
 import javax.persistence.Query;
+import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Expression;
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.persistence.criteria.Subquery;
 import jpabook.AbstractDemoRunner;
-import jpabook.dto.UserDTO;
+import jpabook.dto.MemberDTO;
+import jpabook.dto.ProductDTO;
 import jpabook.entity.Address;
 import jpabook.entity.Member;
-import jpabook.entity.Order;
+import jpabook.entity.Product;
+import jpabook.entity.QMember;
+import jpabook.entity.QOrder;
+import jpabook.entity.QProduct;
 import jpabook.entity.Team;
 
 /**
@@ -50,9 +68,561 @@ public class JqplDemo {
             // subquery(runner);
             // useEntityDirectly(runner);
             // namedQuery(runner);
-            criteriaUsage(runner);
+            // criteriaUsage(runner);
+            // criteriaQuery(runner);
+            // set(runner);
+            // subquery2(runner);
+            // dynamicQuery(runner);
+            // queryDSL(runner);
+            nativeSQL(runner);
         } finally {
             runner.close();
+        }
+    }
+
+    private static void nativeSQL(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("엔티티 조회", em -> {
+                String sql = "SELECT MEMBER_ID, AGE, NAME FROM MEMBER WHERE AGE > ?";
+                Query nativeQuery = em.createNativeQuery(sql, Member.class)
+                    .setParameter(1, 3);
+
+                List<Member> results = nativeQuery.getResultList();
+                System.out.println("Search result : " + results.size());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void queryDSL(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("QueryDSL 시작", em -> {
+                // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_
+                // from member member0_ where member0_.name=? order by member0_.name desc
+                JPAQuery query = new JPAQuery(em);
+                QMember qMember = new QMember("m"); // 생성되는 JPQL의 별칭이 m
+
+                List<Member> results = query.from(qMember)
+                    .where(qMember.username.eq("회원1"))
+                    .orderBy(qMember.username.desc())
+                    .list(qMember);
+
+                System.out.println("Search result size :: " + results.size());
+            });
+
+            runner.doTask("검색 조건 쿼리", em -> {
+                JPAQuery query = new JPAQuery(em);
+                QProduct product = QProduct.product;
+
+                List<Product> products = query.from(product)
+                    .where(product.name.eq("좋은 상품").and(product.price.gt(20000))
+                    )
+                    // .orderBy(product.price.desc(), product.stockAmount.asc())
+                    // .offset(10).limit(20)
+                    .list(product);
+
+                /*
+                product.price.between(10000, 20000); // 가격이 10000 ~ 20000
+                product.name.concat("상품1"); // 상품1 을 포함 like '%상품1%'
+                product.name.startsWith("고급"); // like '고급%'
+                */
+
+                System.out.println("Search reseult :: " + products.size());
+            });
+
+            runner.doTask("페이징과 정렬", em -> {
+                JPAQuery query = new JPAQuery(em);
+                QueryModifiers queryModifiers = new QueryModifiers(20L, 10L); // limit offset
+
+                List<Product> products = query.from(QProduct.product)
+                    .restrict(queryModifiers)
+                    .list(QProduct.product);
+
+                System.out.println("Search size :: " + products.size());
+            });
+
+            runner.doTask("페이징과 정렬2", em -> {
+                JPAQuery query = new JPAQuery(em);
+                SearchResults<Product> results = query.from(QProduct.product)
+                    .where(QProduct.product.price.gt(10000))
+                    .offset(10L).limit(20L)
+                    .listResults(QProduct.product);
+
+                long total = results.getTotal();
+                long limit = results.getLimit();
+                long offset = results.getOffset();
+
+                System.out.printf("total : %d / limit : %d / offset : %d / contents : %d\n"
+                    , total, limit, offset, results.getResults().size());
+            });
+
+            runner.doTask("그룹", em -> {
+                // select product0_.product_id as product_1_2_, product0_.name as name2_2_, product0_.order_id as order_id5_2_, product0_.price as price3_2_, product0_.stock_amount as stock_am4_2_
+                // from product product0_ group by product0_.price having product0_.price>?
+                JPAQuery query = new JPAQuery(em);
+                QProduct product = QProduct.product;
+                List<Product> results = query.from(QProduct.product)
+                    .groupBy(product.price)
+                    .having(product.price.gt(1000))
+                    .list(product);
+
+                System.out.println("Search result size : " + results.size());
+            });
+
+            runner.doTask("조인", em -> {
+                boolean temp = true;
+                if (temp) {
+                    return;
+                }
+
+                JPAQuery query = new JPAQuery(em);
+                QOrder order = QOrder.order;
+                QMember member = QMember.member;
+                QProduct product = QProduct.product;
+
+                // 기본 조인
+                query.from(order)
+                    .join(order.member, member)
+                    .leftJoin(order.products, product)
+                    .list(order);
+
+                // 조인 on 사용
+                query.from(order)
+                    .leftJoin(order.products, product)
+                    .on(product.count().gt(2))
+                    .list(order);
+
+                // fetch 조인
+                query.from(order)
+                    .innerJoin(order.member, member).fetch()
+                    .leftJoin(order.products, product).fetch()
+                    .list(order);
+
+                // from 절에 여러 조건 사용
+                query.from(order, member)
+                    .where(order.member.eq(member))
+                    .list(order);
+            });
+
+            runner.doTask("서브 쿼리", em -> {
+                boolean temp = true;
+                if (temp) {
+                    return;
+                }
+
+                QProduct product = QProduct.product;
+                QProduct productSub = new QProduct("productSub");
+
+                JPAQuery query = new JPAQuery(em);
+                query.from(product)
+                    .where(product.price.eq(
+                        new JPASubQuery().from(productSub).unique(productSub.price.max())
+                    ))
+                    .list(product);
+
+                query.from(product)
+                    .where(product.in(
+                        new JPASubQuery().from(productSub)
+                            .where(product.name.eq(productSub.name))
+                            .list(productSub)
+                    ))
+                    .list(product);
+            });
+
+            runner.doTask("프로젝션 결과 반환 : 프로젝션 대상이 하나", em -> {
+                JPAQuery query = new JPAQuery(em);
+                QProduct product = QProduct.product;
+                List<String> results = query.from(product).list(product.name);
+                System.out.println("Search result : " + results.size());
+            });
+
+            runner.doTask("프로젝션 결과 반환 : 여러 컬럼 반환과 튜플", em -> {
+                JPAQuery query = new JPAQuery(em);
+                QProduct product = QProduct.product;
+
+                List<com.mysema.query.Tuple> results = query.from(product).list(product.name, product.price);
+                // List<com.mysema.query.Tuple> results = query.from(product).list(new QTuple(product.name, product.price));
+
+                System.out.println("Search result : " + results.size());
+                for (com.mysema.query.Tuple tuple : results) {
+                    System.out.println("name = " + tuple.get(product.name));
+                    System.out.println("price = " + tuple.get(product.price));
+                }
+            });
+
+            runner.doTask("프로젝션 결과 반환 : 빈 생성", em -> {
+                boolean temp = true;
+                if (temp) {
+                    return;
+                }
+
+                JPAQuery query = new JPAQuery(em);
+                QProduct product = QProduct.product;
+
+                // 프로퍼티 접근(setter)
+                List<ProductDTO> results = query.from(product)
+                    .list(Projections.bean(ProductDTO.class, product.name.as("username"), product.price));
+
+                // 필드 직접 접근
+                query.from(product)
+                    .list(Projections.fields(ProductDTO.class, product.name.as("username"), product.price));
+
+                // 생성자 사용
+                query.from(product)
+                    .list(Projections.constructor(ProductDTO.class, product.name, product.price));
+                System.out.println("Search result : " + results.size());
+            });
+
+            runner.doTask("수정 배치 쿼리", em -> {
+                QProduct product = QProduct.product;
+                JPAUpdateClause updateClause = new JPAUpdateClause(em, product);
+                long count = updateClause.where(product.name.eq("시골개발자의 JPA 책"))
+                    .set(product.price, product.price.add(100))
+                    .execute();
+            });
+
+            runner.doTask("삭제 배치 쿼리", em -> {
+                QProduct product = QProduct.product;
+                JPADeleteClause deleteClause = new JPADeleteClause(em, product);
+                long count = deleteClause.where(product.name.eq("시골개발자의 JPA 책"))
+                    .execute();
+            });
+
+            runner.doTask("동적 쿼리", em -> {
+                // select product0_.product_id as product_1_2_, product0_.name as name2_2_, product0_.order_id as order_id5_2_, product0_.price as price3_2_, product0_.stock_amount as stock_am4_2_
+                // from product product0_ where product0_.price>?
+                JPAQuery query = new JPAQuery(em);
+                QProduct product = QProduct.product;
+
+                List<Product> results = query.from(product)
+                    .where(product.isExpensive(3000))
+                    .list(product);
+
+                System.out.println("Search result : " + results.size());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void dynamicQuery(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("JPQL 동적 쿼리", em -> {
+                // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_ from member member0_ inner join team team1_ on member0_.team=team1_.team_id where member0_.age=? and team1_.name=?
+                // 검색 조건
+                Integer age = 10;
+                String username = null;
+                String teamName = "team01";
+
+                // JQPL 동적 쿼리 생성
+                StringBuilder jpql = new StringBuilder("SELECT m from Member m join m.team t ");
+                List<String> criteria = new ArrayList<>();
+
+                if (age != null) {
+                    criteria.add(" m.age = :age ");
+                }
+
+                if (username != null) {
+                    criteria.add(" m.username = :username ");
+                }
+
+                if (teamName != null) {
+                    criteria.add(" t.name = :teamName ");
+                }
+
+                if (criteria.size() > 0) {
+                    jpql.append(" where ");
+                }
+
+                for (int i = 0; i < criteria.size(); i++) {
+                    if (i > 0) {
+                        jpql.append(" and ");
+                    }
+                    jpql.append(criteria.get(i));
+                }
+
+                TypedQuery<Member> query = em.createQuery(jpql.toString(), Member.class);
+                if (age != null) {
+                    query.setParameter("age", age);
+                }
+
+                if (username != null) {
+                    query.setParameter("username", username);
+                }
+
+                if (teamName != null) {
+                    query.setParameter("teamName", teamName);
+                }
+
+                List<Member> results = query.getResultList();
+                System.out.println(">> Search result : " + results.size());
+            });
+
+            runner.doTask("Criteria 동적 쿼리", em -> {
+                // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_
+                // from member member0_ inner join team team1_ on member0_.team=team1_.team_id
+                // where member0_.age=? and team1_.name=?
+                // 검색 조건
+                Integer age = 10;
+                String username = null;
+                String teamName = "team01";
+
+                // Criteria 동적 쿼리 생성
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+
+                Root<Member> m = cq.from(Member.class);
+                Join<Member, Team> t = m.join("team");
+
+                List<Predicate> criteria = new ArrayList<>();
+                if (age != null) {
+                    criteria.add(cb.equal(m.<Integer>get("age"), cb.parameter(Integer.class, "age")));
+                }
+
+                if (username != null) {
+                    criteria.add(cb.equal(m.get("username"), cb.parameter(String.class, "username")));
+                }
+
+                if (teamName != null) {
+                    criteria.add(cb.equal(t.get("name"), cb.parameter(String.class, "teamName")));
+                }
+
+                cq.where(cb.and(criteria.toArray(new Predicate[0])));
+
+                TypedQuery<Member> query = em.createQuery(cq);
+                if (age != null) {
+                    query.setParameter("age", age);
+                }
+
+                if (username != null) {
+                    query.setParameter("username", username);
+                }
+
+                if (teamName != null) {
+                    query.setParameter("teamName", teamName);
+                }
+
+                List<Member> results = query.getResultList();
+                System.out.println("Search result : " + results.size());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void subquery2(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("서브쿼리", em -> {
+                // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_ from member member0_ where member0_.age>=(select avg(cast(member1_.age as double)) from member member1_)
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Member> mainQuery = cb.createQuery(Member.class);
+
+                // 서브 쿼리 생성
+                Subquery<Double> subQuery = mainQuery.subquery(Double.class);
+
+                Root<Member> m2 = subQuery.from(Member.class);
+                subQuery.select(cb.avg(m2.<Integer>get("age")));
+
+                // 메인 쿼리 생성
+                Root<Member> m = mainQuery.from(Member.class);
+                mainQuery.select(m).where(cb.ge(m.<Integer>get("age"), subQuery));
+
+                TypedQuery<Member> query = em.createQuery(mainQuery);
+                List<Member> results = query.getResultList();
+
+                System.out.println("Search result : " + results.size());
+            });
+
+            runner.doTask("IN 식", em -> {
+                // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_ from member member0_ where member0_.name in (? , ?)
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+                Root<Member> m = cq.from(Member.class);
+
+                cq.select(m)
+                    .where(cb.in(m.get("username"))
+                        .value("회원1")
+                        .value("회원2")
+                    );
+
+                TypedQuery<Member> query = em.createQuery(cq);
+                List<Member> results = query.getResultList();
+
+                System.out.println("Search result : " + results.size());
+            });
+
+            runner.doTask("CASE 식", em -> {
+                // select member0_.name as col_0_0_, case when member0_.age>=60 then 600 when member0_.age<=15 then 500 else 1000 end as col_1_0_ from member member0_
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+                Root<Member> m = cq.from(Member.class);
+
+                cq.multiselect(
+                    m.get("username"),
+                    cb.selectCase()
+                        .when(cb.ge(m.<Integer>get("age"), 60), 600)
+                        .when(cb.le(m.<Integer>get("age"), 15), 500)
+                        .otherwise(1000)
+                );
+
+                TypedQuery<Object[]> query = em.createQuery(cq);
+                List<Object[]> results = query.getResultList();
+                System.out.println("Search result : " + results.size());
+                for (Object[] result : results) {
+                    System.out.println(Arrays.toString(result));
+                }
+            });
+
+            runner.doTask("파라미터 정의", em -> {
+                // select member0_.member_id as member_i1_0_, member0_.age as age2_0_, member0_.team as team4_0_, member0_.name as name3_0_
+                // from member member0_ where member0_.name=?
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+
+                Root<Member> m = cq.from(Member.class);
+
+                cq.select(m)
+                    .where(cb.equal(m.get("username"), cb.parameter(String.class, "usernameParam")));
+
+                List<Member> results = em.createQuery(cq)
+                    .setParameter("usernameParam", "유저1")
+                    .getResultList();
+
+                System.out.println(">> Search result : " + results.size());
+            });
+
+            runner.doTask("네이티브 함수", em -> {
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+
+                Root<Member> m = cq.from(Member.class);
+                Expression<Long> function = cb.function("SUM", Long.class, m.get("age"));
+                cq.select(function);
+
+                TypedQuery<Long> query = em.createQuery(cq);
+                System.out.println("Search result : " + query.getSingleResult());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void set(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("GROUP BY & HAVING & ORDER", em -> {
+                // select team1_.name as col_0_0_, max(member0_.age) as col_1_0_, min(member0_.age) as col_2_0_ from member member0_, team team1_ where member0_.team=team1_.team_id group by team1_.name
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+                Root<Member> m = cq.from(Member.class);
+
+                Expression maxAge = cb.max(m.<Integer>get("age"));
+                Expression minAge = cb.min(m.<Integer>get("age"));
+
+                cq.multiselect(m.get("team").get("name"), maxAge, minAge);
+                cq.groupBy(m.get("team").get("name"));
+
+                // Orderby : order by m.age desc
+                // cq.orderBy(cb.desc(m.get("age")));
+
+                // Having : having min(m.age) > 10
+                // cq.having(cb.gt(minAge, 10));
+
+                TypedQuery<Object[]> query = em.createQuery(cq);
+                List<Object[]> results = query.getResultList();
+
+                System.out.println(">> Search result : " + results.size());
+            });
+
+            runner.doTask("JOIN", em -> {
+                // select member0_.member_id as member_i1_0_0_, team1_.team_id as team_id1_3_1_, member0_.age as age2_0_0_, member0_.team as team4_0_0_, member0_.name as name3_0_0_, team1_.name as name2_3_1_ from member member0_ inner join team team1_ on member0_.team=team1_.team_id where team1_.name=?
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+
+                Root<Member> m = cq.from(Member.class);
+                Join<Member, Team> t = m.join("team", JoinType.INNER); // 내부 조인
+
+                cq.multiselect(m, t)
+                    .where(cb.equal(t.get("name"), "team01"));
+
+                TypedQuery<Object[]> query = em.createQuery(cq);
+                List<Object[]> results = query.getResultList();
+
+                System.out.println(">> Search result : " + results.size());
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    private static void criteriaQuery(AbstractDemoRunner runner) {
+        try {
+            runner.doTask("Criteria 쿼리 생성", em -> {
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Member> cq = cb.createQuery(Member.class);
+
+                Root<Member> m = cq.from(Member.class);
+                // JPQL : select m
+                cq.select(m);
+
+                // JPQL : select m.username, m.age
+                // cq.multiselect(m.get("username"), m.get("age"));
+                // cq.select( cb.array(m.get("username"), m.get("age")) );
+
+                List<Member> members = em.createQuery(cq).getResultList();
+                System.out.println(">> Search result : " + members.size());
+            });
+
+            runner.doTask("Distinct", em -> {
+                // JQPL : select distinct member0_.name as col_0_0_, member0_.age as col_1_0_ from member member0_
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+                Root<Member> m = cq.from(Member.class);
+                cq.multiselect(m.get("username"), m.get("age")).distinct(true);
+
+                TypedQuery<Object[]> query = em.createQuery(cq);
+                List<Object[]> results = query.getResultList();
+                System.out.println(">> Search size : " + results.size());
+            });
+
+            runner.doTask("NEW, construct()", em -> {
+                // select member0_.name as col_0_0_, member0_.age as col_1_0_ from member member0_
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+                CriteriaQuery<MemberDTO> cq = cb.createQuery(MemberDTO.class);
+                Root<Member> m = cq.from(Member.class);
+
+                cq.select(cb.construct(MemberDTO.class, m.get("username"), m.get("age")));
+                TypedQuery<MemberDTO> query = em.createQuery(cq);
+
+                List<MemberDTO> results = query.getResultList();
+                System.out.println(">> Search result : " + results.size());
+            });
+
+            runner.doTask("Tuple", em -> {
+                // select member0_.name as col_0_0_, member0_.age as col_1_0_ from member member0_
+                CriteriaBuilder cb = em.getCriteriaBuilder();
+
+                CriteriaQuery<Tuple> cq = cb.createTupleQuery();
+                // CriteriaQuery<Tuple> cq = cb.createQuery(Tuple.class);
+
+                Root<Member> m = cq.from(Member.class);
+                // 튜플에서 사용할 튜플 별칭 (SQL의 별칭이 아니라 Tuple 인스턴스의 별칭)
+                cq.multiselect(
+                    m.get("username").alias("username"),
+                    m.get("age").alias("age")
+                );
+
+                TypedQuery<Tuple> query = em.createQuery(cq);
+                List<Tuple> results = query.getResultList();
+
+                for (Tuple tuple : results) {
+                    String username = tuple.get("username", String.class);
+                    Integer age = tuple.get("age", Integer.class);
+                    System.out.println("username : " + username + ", age : " + age);
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
         }
     }
 
@@ -335,8 +905,8 @@ public class JqplDemo {
 
             runner.doTask("NEW 명령어", em -> {
                 // SQL : select member0_.name as col_0_0_, member0_.age as col_1_0_ from member member0_
-                TypedQuery<UserDTO> query = em.createQuery("SELECT new jpabook.dto.UserDTO(m.username, m.age)"
-                    + "FROM Member m", UserDTO.class);
+                TypedQuery<MemberDTO> query = em.createQuery("SELECT new jpabook.dto.UserDTO(m.username, m.age)"
+                    + "FROM Member m", MemberDTO.class);
                 System.out.println("DTO size :: " + query.getResultList().size());
             });
 
